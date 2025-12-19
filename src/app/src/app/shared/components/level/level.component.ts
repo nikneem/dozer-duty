@@ -23,7 +23,8 @@ export class LevelComponent implements OnInit {
     private animationFrameId?: number;
     private lastFrameTime = 0;
     private isLevelComplete = false;
-    
+    private moveCount = 0;
+
     // Undo functionality
     private lastMove?: {
         bulldozerPos: Position;
@@ -54,13 +55,13 @@ export class LevelComponent implements OnInit {
             event.preventDefault();
             this.reloadLevel();
         }
-        
+
         // Load next level when N is pressed (only if level is complete)
         if ((event.key === 'n' || event.key === 'N') && this.isLevelComplete) {
             event.preventDefault();
             this.loadNextLevel();
         }
-        
+
         // Undo last move when Ctrl+Z is pressed
         if (event.ctrlKey && event.key === 'z') {
             event.preventDefault();
@@ -107,7 +108,7 @@ export class LevelComponent implements OnInit {
         if (levelNumber !== undefined) {
             this.currentLevelNumber = levelNumber;
         }
-        
+
         this.http.get<Level>(`/levels/level-${this.currentLevelNumber}.json`).subscribe({
             next: (level) => {
                 this.level = level;
@@ -130,6 +131,7 @@ export class LevelComponent implements OnInit {
         // Reset level state
         this.isLevelComplete = false;
         this.levelCompleteSprite = undefined;
+        this.moveCount = 0;
 
         // Adjust canvas size based on level dimensions
         const width = this.level.width * this.cellSize;
@@ -153,7 +155,7 @@ export class LevelComponent implements OnInit {
         // Reset the level to initial state from JSON
         this.loadLevel();
     }
-    
+
     private loadNextLevel(): void {
         // Load the next level
         this.loadLevel(this.currentLevelNumber + 1);
@@ -179,15 +181,15 @@ export class LevelComponent implements OnInit {
         }
 
         this.crateSprites.forEach(crate => crate.update(deltaTime));
-        
+
         if (this.levelCompleteSprite) {
             this.levelCompleteSprite.update(deltaTime);
         }
     }
-    
+
     private render(): void {
         if (!this.level) return;
-        
+
         // Clear canvas
         this.ctx.fillStyle = '#2c3e50';
         this.ctx.fillRect(0, 0, this.canvasWidth(), this.canvasHeight());
@@ -208,11 +210,14 @@ export class LevelComponent implements OnInit {
         if (this.bulldozerSprite) {
             this.bulldozerSprite.render(this.ctx, this.cellSize);
         }
-        
+
         // Draw level complete overlay
         if (this.levelCompleteSprite) {
             this.levelCompleteSprite.render(this.ctx, this.cellSize);
         }
+
+        // Draw move counter at the top
+        this.drawMoveCounter();
     }
 
     private drawGrid(): void {
@@ -372,7 +377,7 @@ export class LevelComponent implements OnInit {
         if (this.isWall(targetPos)) {
             return;
         }
-        
+
         // Save current state before move
         const previousBulldozerPos = { ...currentPos };
         const previousBulldozerDirection = this.bulldozerSprite.getDirection();
@@ -410,7 +415,7 @@ export class LevelComponent implements OnInit {
             if (anotherCrate) {
                 return; // Crate would hit another crate
             }
-            
+
             // Save crate state before move
             const crateIndex = this.crateSprites.indexOf(crateAtTarget);
             const previousCratePos = {
@@ -420,7 +425,7 @@ export class LevelComponent implements OnInit {
 
             // Move is valid - push the crate
             crateAtTarget.startMoveTo(crateTargetPos);
-            
+
             // Save last move with crate
             this.lastMove = {
                 bulldozerPos: previousBulldozerPos,
@@ -439,21 +444,24 @@ export class LevelComponent implements OnInit {
         // Move bulldozer
         this.bulldozerSprite.startMoveTo(targetPos);
 
+        // Increment move counter
+        this.moveCount++;
+
         // Check for level completion after animations finish
         setTimeout(() => this.checkLevelCompletion(), 250);
     }
-    
+
     private undoLastMove(): void {
         if (!this.lastMove || !this.bulldozerSprite) return;
-        
+
         // Check if any animations are running
         if (this.bulldozerSprite.isAnimating()) return;
         if (this.crateSprites.some(crate => crate.isAnimating())) return;
-        
+
         // Restore bulldozer position and direction
         this.bulldozerSprite.position = { ...this.lastMove.bulldozerPos };
         this.bulldozerSprite.setDirection(this.lastMove.bulldozerDirection);
-        
+
         // Restore crate position if a crate was moved
         if (this.lastMove.cratePos !== undefined && this.lastMove.crateIndex !== undefined) {
             const crate = this.crateSprites[this.lastMove.crateIndex];
@@ -461,9 +469,32 @@ export class LevelComponent implements OnInit {
                 crate.position = { ...this.lastMove.cratePos };
             }
         }
-        
+
         // Clear the last move so it can't be undone again
         this.lastMove = undefined;
+
+        // Decrement move counter
+        if (this.moveCount > 0) {
+            this.moveCount--;
+        }
+    }
+
+    private drawMoveCounter(): void {
+        // Draw semi-transparent background
+        this.ctx.fillStyle = 'rgba(0, 0, 0, 0.7)';
+        this.ctx.fillRect(10, 10, 150, 50);
+
+        // Draw border
+        this.ctx.strokeStyle = '#ecf0f1';
+        this.ctx.lineWidth = 2;
+        this.ctx.strokeRect(10, 10, 150, 50);
+
+        // Draw text
+        this.ctx.fillStyle = '#ecf0f1';
+        this.ctx.font = 'bold 20px Arial';
+        this.ctx.textAlign = 'left';
+        this.ctx.textBaseline = 'middle';
+        this.ctx.fillText(`Moves: ${this.moveCount}`, 25, 35);
     }
 
     private checkLevelCompletion(): void {
@@ -491,7 +522,7 @@ export class LevelComponent implements OnInit {
 
     private onLevelComplete(): void {
         console.log('Level Complete!');
-        
+
         // Create and show level complete sprite
         this.levelCompleteSprite = new LevelCompleteSprite(
             this.canvasWidth(),
