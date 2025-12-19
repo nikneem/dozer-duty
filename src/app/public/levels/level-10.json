@@ -159,14 +159,14 @@
   "crates": [
     {
       "position": {
-        "x": 7,
+        "x": 6,
         "y": 6
       },
       "color": "#FF0000"
     },
     {
       "position": {
-        "x": 1,
+        "x": 2,
         "y": 6
       },
       "color": "#00FF00"

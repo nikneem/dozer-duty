@@ -154,6 +154,27 @@
         "y": 7
       },
       "color": "#00FF00"
+    },
+    {
+      "position": {
+        "x": 5,
+        "y": 6
+      },
+      "color": null
+    },
+    {
+      "position": {
+        "x": 6,
+        "y": 5
+      },
+      "color": null
+    },
+    {
+      "position": {
+        "x": 7,
+        "y": 4
+      },
+      "color": null
     }
   ],
   "playerStartPosition": {

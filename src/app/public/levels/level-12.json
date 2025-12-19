@@ -135,7 +135,7 @@
   "crates": [
     {
       "position": {
-        "x": 6,
+        "x": 4,
         "y": 5
       },
       "color": "#FF0000"
@@ -143,9 +143,23 @@
     {
       "position": {
         "x": 4,
-        "y": 6
+        "y": 4
       },
       "color": "#00FF00"
+    },
+    {
+      "position": {
+        "x": 2,
+        "y": 5
+      },
+      "color": null
+    },
+    {
+      "position": {
+        "x": 3,
+        "y": 6
+      },
+      "color": null
     }
   ],
   "playerStartPosition": {

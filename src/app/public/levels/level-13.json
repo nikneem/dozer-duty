@@ -130,40 +130,82 @@
     {
       "x": 8,
       "y": 7
+    },
+    {
+      "x": 4,
+      "y": 2
+    },
+    {
+      "x": 4,
+      "y": 4
+    },
+    {
+      "x": 2,
+      "y": 4
+    },
+    {
+      "x": 3,
+      "y": 4
+    },
+    {
+      "x": 6,
+      "y": 4
+    },
+    {
+      "x": 6,
+      "y": 5
+    },
+    {
+      "x": 6,
+      "y": 6
     }
   ],
   "crates": [
     {
       "position": {
-        "x": 5,
+        "x": 3,
         "y": 2
       },
       "color": "#FF0000"
     },
     {
       "position": {
-        "x": 6,
-        "y": 5
+        "x": 5,
+        "y": 3
       },
       "color": "#00FF00"
+    },
+    {
+      "position": {
+        "x": 2,
+        "y": 6
+      },
+      "color": null
+    },
+    {
+      "position": {
+        "x": 4,
+        "y": 3
+      },
+      "color": null
     }
   ],
   "playerStartPosition": {
-    "x": 6,
-    "y": 1
+    "x": 2,
+    "y": 2
   },
   "endPositions": [
     {
       "position": {
-        "x": 3,
-        "y": 5
+        "x": 7,
+        "y": 6
       },
       "color": "#FF0000"
     },
     {
       "position": {
-        "x": 4,
-        "y": 5
+        "x": 7,
+        "y": 7
       },
       "color": "#00FF00"
     }
