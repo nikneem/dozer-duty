@@ -95,8 +95,9 @@ export class LevelCompleteSprite implements Sprite {
         // Subtitle with wave animation
         const waveOffset = Math.sin(this.animationTime * 0.005) * 5;
         ctx.fillStyle = '#FFFFFF';
-        ctx.font = '28px Arial';
-        ctx.fillText('Press R to restart', centerX, centerY + 40 + waveOffset);
+        ctx.font = '24px Arial';
+        ctx.fillText('Press R to restart', centerX, centerY + 35 + waveOffset);
+        ctx.fillText('Press N for next level', centerX, centerY + 70 + waveOffset);
 
         // Draw sparkles around the text
         if (this.scaleAnimation >= 1) {
