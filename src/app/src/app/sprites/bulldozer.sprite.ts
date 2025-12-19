@@ -21,7 +21,7 @@ export class BulldozerSprite implements Sprite {
 
     private animationTime: number = 0;
     private engineBobOffset: number = 0;
-    private smokeParticles: Array<{ x: number; y: number; life: number; opacity: number }> = [];
+    private smokeParticles: Array<{ x: number; y: number; vx: number; vy: number; life: number; opacity: number }> = [];
     private smokeTimer: number = 0;
     private direction: Direction = Direction.Down;
 
@@ -31,6 +31,13 @@ export class BulldozerSprite implements Sprite {
     private moveStartPos: Position = { x: 0, y: 0 };
     private moveEndPos: Position = { x: 0, y: 0 };
     private moveDuration: number = 200; // milliseconds
+
+    // Push attempt animation (for invalid moves)
+    private isPushAttempting: boolean = false;
+    private pushProgress: number = 0;
+    private pushDirection: { x: number; y: number } = { x: 0, y: 0 };
+    private pushDuration: number = 300; // milliseconds
+    private pushDistance: number = 0.15; // fraction of cell size
 
     constructor(position: Position, direction: Direction = Direction.Down) {
         this.position = { ...position };
@@ -56,8 +63,17 @@ export class BulldozerSprite implements Sprite {
         }
     }
 
+    public startPushAttempt(deltaX: number, deltaY: number): void {
+        if (!this.isPushAttempting && !this.isMoving) {
+            this.isPushAttempting = true;
+            this.pushProgress = 0;
+            this.pushDirection = { x: deltaX, y: deltaY };
+            this.addSmokeBurst();
+        }
+    }
+
     public isAnimating(): boolean {
-        return this.isMoving;
+        return this.isMoving || this.isPushAttempting;
     }
 
     public update(deltaTime: number): void {
@@ -76,6 +92,22 @@ export class BulldozerSprite implements Sprite {
                 const t = this.easeInOutQuad(this.moveProgress);
                 this.position.x = this.moveStartPos.x + (this.moveEndPos.x - this.moveStartPos.x) * t;
                 this.position.y = this.moveStartPos.y + (this.moveEndPos.y - this.moveStartPos.y) * t;
+
+                // Generate trail smoke during movement
+                if (this.smokeTimer > 30) {
+                    this.addTrailSmoke();
+                    this.smokeTimer = 0;
+                }
+            }
+        }
+
+        // Update push attempt animation
+        if (this.isPushAttempting) {
+            this.pushProgress += deltaTime / this.pushDuration;
+
+            if (this.pushProgress >= 1) {
+                this.pushProgress = 0;
+                this.isPushAttempting = false;
             }
         }
 
@@ -93,16 +125,29 @@ export class BulldozerSprite implements Sprite {
         this.smokeParticles = this.smokeParticles
             .map(particle => ({
                 ...particle,
-                y: particle.y - 0.5,
+                x: particle.x + particle.vx,
+                y: particle.y + particle.vy,
+                vy: particle.vy - 0.02, // Slight upward drift
                 life: particle.life - deltaTime,
-                opacity: Math.max(0, particle.opacity - deltaTime * 0.001)
+                opacity: Math.max(0, particle.opacity - deltaTime * 0.0012)
             }))
             .filter(particle => particle.life > 0);
     }
 
     public render(ctx: CanvasRenderingContext2D, cellSize: number): void {
-        const x = this.position.x * cellSize;
-        const y = this.position.y * cellSize;
+        let x = this.position.x * cellSize;
+        let y = this.position.y * cellSize;
+
+        // Apply push attempt offset
+        if (this.isPushAttempting) {
+            const pushOffset = this.calculatePushOffset();
+            x += pushOffset.x * cellSize;
+            y += pushOffset.y * cellSize;
+        }
+
+        // Render smoke particles first (behind bulldozer) - outside rotation context
+        this.renderSmoke(ctx, x, y, cellSize);
+
         const centerX = x + cellSize / 2;
         const centerY = y + cellSize / 2;
 
@@ -115,9 +160,6 @@ export class BulldozerSprite implements Sprite {
 
         // Apply engine bobbing effect
         ctx.translate(0, this.engineBobOffset);
-
-        // Render smoke particles first (behind bulldozer)
-        this.renderSmoke(ctx, x, y, cellSize);
 
         // Draw bulldozer body
         this.drawBody(ctx, x, y, cellSize);
@@ -310,12 +352,13 @@ export class BulldozerSprite implements Sprite {
 
     private renderSmoke(ctx: CanvasRenderingContext2D, x: number, y: number, cellSize: number): void {
         this.smokeParticles.forEach(particle => {
-            ctx.fillStyle = `rgba(120, 120, 120, ${particle.opacity})`;
+            ctx.fillStyle = `rgba(100, 100, 100, ${particle.opacity})`;
             ctx.beginPath();
+            const radius = 4 + (1 - particle.opacity) * 6; // Larger smoke particles
             ctx.arc(
-                x + cellSize * 0.79 + particle.x,
-                y + cellSize * 0.4 + particle.y,
-                3 + (1 - particle.opacity) * 2,
+                x + cellSize * 0.5 + particle.x,
+                y + cellSize * 0.5 + particle.y,
+                radius,
                 0,
                 Math.PI * 2
             );
@@ -327,13 +370,64 @@ export class BulldozerSprite implements Sprite {
         this.smokeParticles.push({
             x: Math.random() * 4 - 2,
             y: 0,
+            vx: 0,
+            vy: -0.5,
             life: 1000,
             opacity: 0.6
         });
     }
 
+    private addTrailSmoke(): void {
+        // Calculate movement direction
+        const dx = this.moveEndPos.x - this.moveStartPos.x;
+        const dy = this.moveEndPos.y - this.moveStartPos.y;
+
+        // Create smoke that drifts in opposite direction of movement
+        const particle = {
+            x: Math.random() * 6 - 3,
+            y: Math.random() * 6 - 3,
+            vx: -dx * 0.3 + (Math.random() * 0.4 - 0.2),
+            vy: -dy * 0.3 + (Math.random() * 0.4 - 0.2),
+            life: 500 + Math.random() * 300,
+            opacity: 0.7 + Math.random() * 0.2
+        };
+        this.smokeParticles.push(particle);
+    }
+
+    private addSmokeBurst(): void {
+        // Generate a burst of 5-8 smoke particles for movement effect
+        const burstCount = 5 + Math.floor(Math.random() * 4);
+        for (let i = 0; i < burstCount; i++) {
+            this.smokeParticles.push({
+                x: Math.random() * 12 - 6,
+                y: Math.random() * 8 - 4,
+                vx: (Math.random() - 0.5) * 0.4,
+                vy: -0.3 - Math.random() * 0.3,
+                life: 600 + Math.random() * 400,
+                opacity: 0.6 + Math.random() * 0.3
+            });
+        }
+    }
+
     private easeInOutQuad(t: number): number {
         return t < 0.5 ? 2 * t * t : -1 + (4 - 2 * t) * t;
+    }
+
+    private calculatePushOffset(): { x: number; y: number } {
+        // Push forward (0 to 0.5) then return (0.5 to 1)
+        let offset: number;
+        if (this.pushProgress < 0.5) {
+            // Push forward phase
+            offset = (this.pushProgress / 0.5) * this.pushDistance;
+        } else {
+            // Return phase
+            offset = ((1 - this.pushProgress) / 0.5) * this.pushDistance;
+        }
+
+        return {
+            x: this.pushDirection.x * offset,
+            y: this.pushDirection.y * offset
+        };
     }
 
     private roundRect(

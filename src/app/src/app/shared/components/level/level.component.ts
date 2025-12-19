@@ -79,6 +79,13 @@ export class LevelComponent implements OnInit {
 
         this.ctx = context;
         this.loadTextures();
+
+        // Load saved level from localStorage or start at level 1
+        const savedLevel = localStorage.getItem('dozer-duty-current-level');
+        if (savedLevel) {
+            this.currentLevelNumber = parseInt(savedLevel, 10);
+        }
+
         this.loadLevel();
     }
 
@@ -109,6 +116,9 @@ export class LevelComponent implements OnInit {
             this.currentLevelNumber = levelNumber;
         }
 
+        // Save current level to localStorage
+        localStorage.setItem('dozer-duty-current-level', this.currentLevelNumber.toString());
+
         this.http.get<Level>(`/levels/level-${this.currentLevelNumber}.json`).subscribe({
             next: (level) => {
                 this.level = level;
@@ -132,6 +142,16 @@ export class LevelComponent implements OnInit {
         this.isLevelComplete = false;
         this.levelCompleteSprite = undefined;
         this.moveCount = 0;
+
+        // Adjust cell size based on level dimensions
+        const maxDimension = Math.max(this.level.width, this.level.height);
+        if (maxDimension <= 8) {
+            this.cellSize = 120; // Double size for small levels
+        } else if (maxDimension >= 17) {
+            this.cellSize = 30; // Half size for large levels
+        } else {
+            this.cellSize = 60; // Normal size for medium levels
+        }
 
         // Adjust canvas size based on level dimensions
         const width = this.level.width * this.cellSize;
@@ -323,6 +343,9 @@ export class LevelComponent implements OnInit {
     private handleMovement(key: string): void {
         if (!this.bulldozerSprite || !this.level) return;
 
+        // Disable movement during level complete state
+        if (this.isLevelComplete) return;
+
         // Check if bulldozer is still animating
         if (this.bulldozerSprite.isAnimating()) return;
 
@@ -370,11 +393,13 @@ export class LevelComponent implements OnInit {
         // Check if target position is within bounds
         if (targetPos.x < 0 || targetPos.x >= this.level.width ||
             targetPos.y < 0 || targetPos.y >= this.level.height) {
+            this.bulldozerSprite.startPushAttempt(deltaX, deltaY);
             return;
         }
 
         // Check if target position is a wall
         if (this.isWall(targetPos)) {
+            this.bulldozerSprite.startPushAttempt(deltaX, deltaY);
             return;
         }
 
@@ -398,10 +423,12 @@ export class LevelComponent implements OnInit {
             // Check if crate's target position is valid
             if (crateTargetPos.x < 0 || crateTargetPos.x >= this.level.width ||
                 crateTargetPos.y < 0 || crateTargetPos.y >= this.level.height) {
+                this.bulldozerSprite.startPushAttempt(deltaX, deltaY);
                 return; // Crate would go out of bounds
             }
 
             if (this.isWall(crateTargetPos)) {
+                this.bulldozerSprite.startPushAttempt(deltaX, deltaY);
                 return; // Crate would hit a wall
             }
 
@@ -413,6 +440,7 @@ export class LevelComponent implements OnInit {
             );
 
             if (anotherCrate) {
+                this.bulldozerSprite.startPushAttempt(deltaX, deltaY);
                 return; // Crate would hit another crate
             }
 
